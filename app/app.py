@@ -6,7 +6,7 @@ app  = Flask(__name__)
 
 @app.route("/")
 def home():
-	return "Hello DevOps! My second  Docker Deployment  is  working."
+	return "Hello DevOps! My application is deployed on Render with CI/CD."
 
 @app.route("/health")
 def health():
