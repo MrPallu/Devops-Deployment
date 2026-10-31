@@ -4,6 +4,8 @@ services:
     container_name: flask-container
     expose:
       - "5000"
+    cap_drop:
+      - ALL
 
   nginx:
     image: nginx:latest

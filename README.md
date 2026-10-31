@@ -1,32 +1,68 @@
 # DevOps Deployment Project
 
-A containerized web application built using Python Flask, Docker, Docker Compose, and Nginx. This project demonstrates the fundamentals of application containerization, reverse proxy configuration, multi-container deployment, and container health monitoring.
+A production-oriented containerized web application built using Python Flask, Gunicorn, Docker, Docker Compose, and Nginx. This project demonstrates containerization, reverse proxy configuration, CI/CD automation, container security, health monitoring, and cloud deployment.
 
 ## Project Overview
 
 The objective of this project is to deploy a Flask web application using Docker and expose it through an Nginx reverse proxy.
 
-Instead of running the Flask application directly on the host machine, the application runs inside a Docker container. Nginx handles incoming HTTP requests and forwards them to the Flask application.
+The application runs inside a Docker container using Gunicorn as its WSGI server. Nginx handles incoming HTTP requests and forwards them to Flask. Docker Compose manages the multi-container environment.
 
-Docker Compose manages both services together.
+The project also implements a CI/CD pipeline using GitHub Actions to build, test, and publish Docker images to Docker Hub. The application is deployed on Render.
 
 ## Architecture
 
 ```text
-             User / Browser
+              User / Browser
                     |
                     | HTTP Request
                     v
-             Nginx Container
-                Port 80
+              Nginx Container
+                  Port 80
                     |
                     | Reverse Proxy
                     v
-             Flask Container
-               Port 5000
+              Flask Container
+                  Port 5000
                     |
                     v
-             Flask Application
+             Gunicorn WSGI Server
+                    |
+                    v
+              Flask Application
+                    |
+                    v
+              Health Endpoint
+```
+
+### CI/CD Architecture
+
+```text
+Developer
+    |
+    | Git Push
+    v
+GitHub Repository
+    |
+    v
+GitHub Actions
+    |
+    | Build Docker Image
+    | Run Container Tests
+    | Test Health Endpoint
+    v
+Docker Hub
+    |
+    v
+Published Docker Image
+
+GitHub Repository
+    |
+    v
+Render Auto Deployment
+    |
+    v
+Live Application
 ```
 
 ## Technologies Used
@@ -35,16 +71,24 @@ Docker Compose manages both services together.
 |---|---|
 | Python | Application development |
 | Flask | Backend web framework |
+| Gunicorn | Production WSGI server |
 | Docker | Application containerization |
 | Docker Compose | Multi-container management |
 | Nginx | Reverse proxy |
+| Git & GitHub | Version control |
+| GitHub Actions | CI/CD automation |
+| Docker Hub | Docker image registry |
+| Render | Cloud deployment |
 | Ubuntu WSL2 | Linux development environment |
-| Git & GitHub | Version control and code hosting |
 
 ## Project Structure
 
 ```text
 devops-deployment/
+│
+├── .github/
+│   └── workflows/
+│       └── docker-build.yml
 │
 ├── app/
 │   ├── app.py
@@ -62,20 +106,24 @@ devops-deployment/
 ## Features
 
 - Flask-based web application.
-- Docker image creation using a custom Dockerfile.
-- Containerized Flask application.
+- Production server using Gunicorn.
+- Custom Dockerfile for image creation.
 - Nginx reverse proxy configuration.
 - Multi-container deployment using Docker Compose.
-- Custom application health endpoint.
+- Application health endpoint.
 - Docker HEALTHCHECK instruction.
-- Container status and log inspection.
-- Reduced Docker build context using `.dockerignore`.
+- Non-root container execution using `appuser`.
+- Linux capabilities dropped using `cap_drop: ALL`.
+- Container monitoring and log inspection.
+- Automated Docker image build and testing through GitHub Actions.
+- Docker image publishing to Docker Hub.
+- Cloud deployment on Render.
 
 ## Application Endpoints
 
 | Endpoint | Description |
 |---|---|
-| `/` | Displays the application welcome message |
+| `/` | Displays application welcome message |
 | `/health` | Returns application health status |
 
 ### Health Check Response
@@ -86,24 +134,23 @@ devops-deployment/
 }
 ```
 
-HTTP response status: `200 OK`
+HTTP response: `200 OK`
 
 ## Prerequisites
-
-Make sure the following tools are installed:
 
 - Docker Desktop
 - Docker Compose
 - WSL2 with Ubuntu
 - Git
+- GitHub account
 
 ## Installation and Deployment
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
-cd devops-deployment
+git clone https://github.com/MrPallu/Devops-Deployment.git
+cd Devops-Deployment
 ```
 
 ### 2. Build and Start Containers
@@ -111,8 +158,6 @@ cd devops-deployment
 ```bash
 docker compose up -d --build
 ```
-
-This command builds the Flask Docker image and starts the Flask and Nginx services in the background.
 
 ### 3. Verify Running Containers
 
@@ -122,7 +167,7 @@ docker compose ps
 
 ### 4. Access the Application
 
-Open the following URL in your browser:
+Open:
 
 ```text
 http://localhost
@@ -130,14 +175,14 @@ http://localhost
 
 ### 5. Test the Health Endpoint
 
-```text
-http://localhost/health
+```bash
+curl http://localhost/health
 ```
 
 Expected response:
 
 ```json
-{"status": "healthy"}
+{"status":"healthy"}
 ```
 
 ## Docker Health Monitoring
@@ -163,6 +208,66 @@ Expected output:
 healthy
 ```
 
+## Container Security
+
+The Flask container includes basic security hardening measures.
+
+### 1. Non-root User
+
+The application runs using a dedicated Linux user named `appuser` instead of the root user.
+
+### 2. Linux Capability Restriction
+
+The Docker Compose configuration uses:
+
+```yaml
+cap_drop:
+  - ALL
+```
+
+This removes Linux capabilities from the Flask container to reduce unnecessary privileges.
+
+### 3. Read-only Nginx Configuration
+
+The Nginx configuration is mounted as read-only:
+
+```yaml
+- ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+```
+
+## CI/CD Pipeline
+
+GitHub Actions automates the Docker image build and testing process.
+
+Pipeline steps:
+
+1. Checkout source code.
+2. Build Docker image.
+3. Run a temporary Docker container.
+4. Test the application health endpoint.
+5. Stop the test container.
+6. Push the Docker image to Docker Hub.
+
+Docker Hub image:
+
+`palash6700/devops-flask-app:latest`
+
+The pipeline uses GitHub Secrets for Docker Hub authentication.
+
+## Cloud Deployment
+
+The application is deployed on Render.
+
+**Live Application:**
+
+https://devops-deployment-bc5v.onrender.com
+
+Health endpoint:
+
+https://devops-deployment-bc5v.onrender.com/health
+
+The Render deployment is connected to the GitHub repository for automatic deployment when changes are pushed.
+
 ## Useful Docker Commands
 
 | Command | Purpose |
@@ -170,40 +275,39 @@ healthy
 | `docker compose up -d --build` | Build and start services |
 | `docker compose ps` | View service status |
 | `docker compose logs` | View service logs |
-| `docker compose logs nginx` | View Nginx logs |
 | `docker compose logs flask` | View Flask logs |
-| `docker compose down` | Stop and remove containers and network |
+| `docker compose logs nginx` | View Nginx logs |
+| `docker compose down` | Stop and remove containers |
 | `docker images` | List Docker images |
 | `docker ps -a` | List all containers |
-
-## Nginx Reverse Proxy
-
-Nginx listens on port 80 and forwards incoming requests to the Flask service on port 5000.
-
-The Flask container is accessible to Nginx through the Docker Compose network. Users access the application through Nginx rather than connecting directly to Flask.
 
 ## Learning Outcomes
 
 Through this project, I gained practical experience with:
 
 1. Linux environment setup using WSL2.
-2. Python Flask application development.
+2. Flask application development.
 3. Dockerfile creation and image building.
-4. Docker container lifecycle management.
-5. Port mapping and container networking.
+4. Container lifecycle management.
+5. Container networking and port mapping.
 6. Nginx reverse proxy configuration.
-7. Multi-container deployment with Docker Compose.
-8. Application health checks and Docker monitoring.
-9. Git-based project management.
+7. Multi-container deployment using Docker Compose.
+8. Gunicorn and WSGI fundamentals.
+9. Container health checks and monitoring.
+10. Docker container security.
+11. Git-based project management.
+12. CI/CD automation using GitHub Actions.
+13. Docker image publishing using Docker Hub.
+14. Cloud application deployment using Render.
 
 ## Future Improvements
 
-- Implement GitHub Actions for Continuous Integration.
-- Automate Docker image builds.
-- Push Docker images to Docker Hub.
-- Deploy the application on AWS EC2.
-- Add Prometheus and Grafana for monitoring.
-- Implement automated deployment workflows.
+- Infrastructure deployment using AWS.
+- Infrastructure as Code using Terraform.
+- Monitoring with Prometheus and Grafana.
+- Centralized logging.
+- Kubernetes orchestration.
+- Advanced automated deployment strategies.
 
 ## Author
 
@@ -211,8 +315,6 @@ Through this project, I gained practical experience with:
 
 B.Tech – Computer Science and Engineering
 
-GitHub: [MrPallu](https://github.com/MrPallu)
+GitHub: https://github.com/MrPallu
 
----
-
-
+Project Repository: https://github.com/MrPallu/Devops-Deployment
